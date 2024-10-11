@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Covid 19 info</title>
+
+    <!-- tailwind cdn -->
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+    
+    <div class="md:h-screen bg-stone-800 text-white p-10">
+        <h1 class="text-center text-3xl font-medium underline decoration-wavy underline-offset-8 mb-10">Covid-19 Information</h1>
+        <div class="w-full md:w-3/4 bg-sky-50 text-black rounded-lg mx-auto p-7">
+            <div class="flex flex-col md:flex-row justify-between gap-3 items-center mb-3">
+                <div class="w-96 flex gap-4">
+                    <input type="search" id="search" class="w-full border-2 border-stone-200 focus:outline-none focus:border-stone-500 rounded-lg px-4 py-2" placeholder="Search by country" />
+                    <button type="button" id="searchbtn" class="bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg px-4 py-2">Search</button>
+                </div>
+                <div>
+                    <select name="sortlist" id="sortlist" class="px-4 border-2 border-stone-200 focus:border-stone-500 rounded-lg cursor-pointer py-2">
+                        <option selected disabled>Sory by</option>
+                        <option value="mt">Most active</option>
+                        <option value="ls">Less active</option>
+                    </select>
+                </div>
+            </div>
+            <div class="w-full h-[30rem] overflow-y-auto">
+                <table class="w-full table-auto">
+                    <tr class="sticky top-0 bg-indigo-500 text-white">
+                        <th class="w-10 p-2">No.</th>
+                        <th class="text-left p-2">Country</th>
+                        <th class="w-24 md:w-44 text-left bg-green-500 p-2">Active</th>
+                        <th class="w-24 md:w-44 text-left p-2">Confirmed</th>
+                        <th class="w-24 md:w-44 text-left bg-rose-500 p-2">Deaths</th>
+                        <th class="w-28 md:w-32 text-left p-2">Last Update</th>
+                    </tr>
+                    <tbody id="infolistcontainer">
+                        <!-- <tr class="border-b-2 border-indigo-200">
+                            <td class="text-center p-2">1</td>
+                            <td class="p-2">USA</td>
+                            <td class="p-2 bg-green-100">10</td>
+                            <td class="p-2">10</td>
+                            <td class="p-2 bg-rose-100">10</td>
+                        </tr> -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- axios cdn -->
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+
+    <script type="text/javascript">
+
+        const uisearch = document.getElementById("search");
+        const uisearchbtn = document.getElementById("searchbtn");
+        const uisortlist = document.getElementById("sortlist");
+        const uiinfolistcontainer = document.getElementById("infolistcontainer");
+
+        let perpage = 10;
+        let curpage = 1;
+        let cc = 0;
+
+        let infos = [];
+
+        async function getregionfun(){
+            const url = `https://covid-api.com/api/regions?per_page=${perpage}&page=${curpage}`;
+
+            let regions;
+
+            await axios({
+                method: "GET",
+                url: url
+            })
+            .then(res => {
+                // console.log(res);
+                regions = res.data.data;
+            })
+            .catch(err => console.log(err));
+
+            return regions;
+        }
+
+        async function getinfofun(){
+            let regions = await getregionfun();
+            // console.log(regions);
+
+            uiinfolistcontainer.innerHTML = "";
+
+            regions.forEach(region => {
+                let url = `https://covid-api.com/api/reports/total?iso=${region.iso}`;
+
+                axios.get(url)
+                    .then(res => {
+                        // console.log(res);
+                        infos.push({...res.data,region});
+                        loadtohtml(region,res.data);
+                    })
+                    .catch(err => console.log(err));
+            })
+        }
+
+        function loadtohtml(region,{data}){
+            cc++;
+            let newtr = document.createElement("tr");
+            newtr.className = "border-b-2 border-indigo-200";
+            newtr.innerHTML = `
+                <td class="text-center p-2">${cc}</td>
+                <td class="p-2">${region.name}</td>
+                <td class="p-2 bg-green-100">${data.active}</td>
+                <td class="p-2">${data.confirmed}</td>
+                <td class="p-2 bg-rose-100">${data.deaths}</td>
+                <td class="p-2">${data.date}</td>
+            `;
+
+            uiinfolistcontainer.appendChild(newtr);
+        }
+
+        getinfofun();
+
+
+        function searchcountryfun(){
+            const trs = document.querySelectorAll("#infolistcontainer tr");
+            const getsearch = uisearch.value.toLowerCase();
+            // console.log(trs);
+            if(trs){
+                trs.forEach(tr => {
+                    // console.log(tr);
+                    let gettext = tr.children[1].innerText.toLowerCase();
+                    if(!gettext.includes(getsearch)){
+                        tr.classList.add("hidden");
+                    }else{
+                        tr.classList.remove("hidden");
+                    }
+                })
+            }
+            console.log(infos);
+        }
+
+        uisearchbtn.addEventListener("click",searchcountryfun);
+
+
+        function sortingfun(e){
+            // console.log("SOrting");
+            // console.log(e.target.value);
+            if(e.target.value == "mt"){
+                infos.sort((x,y)=> x.data.active + y.data.active );
+            }else{
+                infos.sort((x,y)=> x.data.active - y.data.active );
+            }
+
+            // console.log(infos);
+
+            cc = 0;
+            uiinfolistcontainer.innerHTML = "";
+
+            infos.forEach((info)=>{
+                loadtohtml(info.region,info);
+            })
+        }
+
+        uisortlist.addEventListener("change",sortingfun);
+
+    </script>
+</body>
+</html>
